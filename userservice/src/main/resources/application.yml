@@ -1,0 +1,97 @@
+server:
+  port: 8088
+eureka:
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10    # ✅ increased from 5
+    lease-expiration-duration-in-seconds: 30
+    client:
+      service-url:
+        defaultZone: http://localhost:8761/eureka/
+      registry-fetch-interval-seconds: 10      # ✅ increased from 5
+      eureka-server-connect-timeout-seconds: 10 # ✅ increased
+      eureka-server-read-timeout-seconds: 10    # ✅ increased
+
+spring:
+  application:
+    name: USERSERVICE
+  datasource:
+    hikari:
+      maximum-pool-size: 10       # ✅ reduce from default 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/travelapp}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 1
+      properties:
+          max.block.ms: 3000
+          request.timeout.ms: 5000
+          delivery.timeout.ms: 8000
+
+
+
+    consumer:
+      properties:
+        session.timeout.ms: 60000        # ✅ increase from 45s
+        heartbeat.interval.ms: 10000     # ✅ must be 1/3 of session timeout
+        max.poll.interval.ms: 600000
+        spring.json.trusted.packages: "*"
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+
+
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+    table: flyway_schema_history_userservice
+    baseline-on-migrate: true
+
+app:
+  topics:
+    booking-confirmed: booking-confirmed-topic
+    user-notification: user-notification-topic
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: userservice
+
+logging:
+  file:
+    name: logs/userservice.log
+
+  level:
+    root: INFO
+    com.example.userservice: DEBUG
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

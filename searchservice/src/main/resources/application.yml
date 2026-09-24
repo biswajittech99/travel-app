@@ -1,0 +1,65 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: SEARCHSERVICE
+
+  redis:
+    host: localhost
+    port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+
+app:
+cache-ttl-seconds: 30
+
+#amadeus:
+#  base-url: https://test.api.amadeus.com
+#  client-id: FTOMDnyvAjS9cAPlsQ41og9krVyJob79
+#  client-secret: qAdHe3vUuYTdKXZL
+#
+aviationstack:
+  base-url: ${AVIATIONSTACK_BASE_URL:https://api.aviationstack.com/v1}
+  api-key: ${AVIATIONSTACK_API_KEY}
+
+serpapi:
+  base-url: ${SERPAPI_BASE_URL:https://serpapi.com}
+  api-key:  ${SERPAPI_API_KEY}
+
+
+
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 10
+
+resilience4j:                       # ✅ FIX: root level not under amadeus
+  retry:
+    instances:
+      supplierRetry:
+        maxAttempts: 2
+        waitDuration: 500ms
+  circuitbreaker:
+    instances:
+      supplierCb:
+        slidingWindowSize: 20
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+
+logging:
+  level:
+    root: INFO
+    com.example.searchservice: DEBUG

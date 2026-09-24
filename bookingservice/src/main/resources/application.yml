@@ -1,0 +1,71 @@
+server:
+  port: 8087
+eureka:
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:                                      # ✅ correct level
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 30
+    eureka-server-connect-timeout-seconds: 10
+    eureka-server-read-timeout-seconds: 10
+
+spring:
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/travelapp}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # use update while testing
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: booking-service-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      # Widen timeout tolerance so a brief broker stall (e.g. sibling
+      # Docker containers momentarily starving Kafka of CPU) doesn't
+      # immediately trigger a disconnect/rejoin cycle across all four
+      # consumer groups this service runs (booking-service-group,
+      # booking-saga-group). All raw properties here, since only
+      # heartbeat-interval has a first-class Spring Boot binding —
+      # session.timeout.ms/request.timeout.ms don't, so putting them
+      # at the top level risks a config-binding failure.
+      properties:
+        session.timeout.ms: 45000
+        heartbeat.interval.ms: 15000
+        request.timeout.ms: 60000
+        max.poll.interval.ms: 300000
+        reconnect.backoff.ms: 1000
+        reconnect.backoff.max.ms: 10000
+        spring:
+          deserializer:
+            value:
+              delegate:
+                class: org.springframework.kafka.support.serializer.JsonDeserializer
+          json:
+            value:
+              default:
+                type: org.example.common.dto.FlightInventoryDTO
+            trusted:
+              packages: org.example.common.dto
+
+  redis:
+    host: localhost
+    port: 6379
+
+  flyway:
+    enabled: false   # disable until you add migration scripts
+
+services:
+  search-url: http://localhost:8086

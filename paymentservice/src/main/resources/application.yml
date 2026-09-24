@@ -1,0 +1,48 @@
+server:
+  port: 8090  # ✅ explicit port, no conflict
+
+spring:
+  application:
+    name: PAYMENTSERVICE  # ✅ Eureka registration name
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false   # ✅ no type header pollution
+      acks: all                               # ✅ wait for all replicas
+      retries: 3                              # ✅ retry on failure
+      enable.idempotence: true              # ✅ no duplicate messages
+
+    consumer:
+      group-id: payment-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      enable-auto-commit: false              # ✅ manual ack — matches KafkaConfig
+      properties:
+        spring.json.trusted.packages: "org.example.common.dto"  # ✅ not wildcard
+
+# ✅ FIXED: payment at ROOT level, not under spring
+payment:
+  topics:
+    request: payment.request
+    success: payment.succeeded
+    failed: payment.failed
+  mock:
+    success-rate: 0.9   # 90% success for demo
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 10
+    eureka-server-connect-timeout-seconds: 10
+    eureka-server-read-timeout-seconds: 10

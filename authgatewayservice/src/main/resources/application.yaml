@@ -1,0 +1,82 @@
+server:
+  port: 8099
+
+spring:
+  application:
+    name: authgatewayservice
+  main:
+    web-application-type: reactive
+
+  cloud:
+    gateway:
+      httpclient: # 🔥 ADD THIS BLOCK
+        connect-timeout: 5000
+        response-timeout: 30s
+      routes:
+        - id: userservice-route   # any name (just unique)
+          uri: lb://USERSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/users/**
+
+        - id: bookingservice-route   # any name (just unique)
+          uri: lb://BOOKINGSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/bookings/**
+          filters:
+            - CircuitBreaker=name=bookingServiceCB,fallbackUri=forward:/fallback/bookings
+        - id: delaydetectionservice-route   # any name (just unique)
+          uri: lb://DELAYDETECTIONSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/delay/**
+        - id: invoiceservice-route   # any name (just unique)
+          uri: lb://INVOICESERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/invoices/**
+        - id: paymentservice-route   # any name (just unique)
+          uri: lb://PAYMENTSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/payments/**
+        - id: priceTrackerservice-route   # any name (just unique)
+          uri: lb://PRICETRACKERSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/price-alerts/**
+        - id: searchservice-route   # any name (just unique)
+          uri: lb://SEARCHSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=/api/search/**
+        - id: chatbotservice-route   # any name (just unique)
+          uri: lb://CHATBOTSERVICE   # MUST match Eureka name (uppercase)
+          predicates:
+            - Path=
+
+
+
+
+
+
+
+
+
+
+
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10    # ✅ increased from 5
+    lease-expiration-duration-in-seconds: 30
+    client:
+      service-url:
+        defaultZone: http://localhost:8761/eureka/
+      registry-fetch-interval-seconds: 10      # ✅ increased from 5
+      eureka-server-connect-timeout-seconds: 10 # ✅ increased
+      eureka-server-read-timeout-seconds: 10    # ✅ increased
+
+
+
+

@@ -1,0 +1,32 @@
+package com.example.chatbotservice.rag.tool;
+
+public enum ToolType {
+    UNKNOWN,
+
+    USER_PROFILE,
+
+    USER_BOOKINGS,
+
+    BOOKING_DETAILS,
+
+    FLIGHT_SEARCH,
+
+    FLIGHT_STATUS,
+
+    FLIGHT_REVALIDATION,
+    FLIGHT_BOOKING,
+
+
+    HOTEL_SEARCH,
+    HOTEL_REVALIDATION,
+
+    HOTEL_BOOK,
+
+    HOTEL_CANCEL,
+
+    PRICE_REVALIDATION,
+    GENERAL_CHAT,
+
+    DELAY_CHECK
+
+}
