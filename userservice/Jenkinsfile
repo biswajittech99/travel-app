@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCOUNT_ID = '939760948670'
+        AWS_REGION     = 'us-east-1'
+        ECR_REPO       = 'travel-userservice'
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
+        ECR_URI        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('userservice') {
+                    sh 'mvn -pl userservice -am -f ../pom.xml test -Dmaven.test.skip=false'
+                }
+            }
+        }
+
+        stage('Build Jar') {
+            steps {
+                sh 'mvn -pl userservice -am -f pom.xml clean package -Dmaven.test.skip=true'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -f userservice/Dockerfile -t ${ECR_URI}:${IMAGE_TAG} -t ${ECR_URI}:latest ."
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws-ecr-credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        docker push ${ECR_URI}:${IMAGE_TAG}
+                        docker push ${ECR_URI}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Approve Production Deploy') {
+            steps {
+                timeout(time: 30, unit: 'MINUTES') {
+                    input message: "Deploy image ${IMAGE_TAG} to EKS production?", ok: 'Deploy'
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws-ecr-credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    sh """
+                        aws eks update-kubeconfig --region ${AWS_REGION} --name travel-learning-cluster
+                        kubectl set image deployment/userservice userservice=${ECR_URI}:${IMAGE_TAG} --record
+                        kubectl rollout status deployment/userservice --timeout=120s
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully for build ${IMAGE_TAG}"
+        }
+        failure {
+            echo "Pipeline failed — check logs above"
+        }
+    }
+}
+

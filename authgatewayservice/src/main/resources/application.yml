@@ -72,7 +72,7 @@ eureka:
     lease-expiration-duration-in-seconds: 30
     client:
       service-url:
-        defaultZone: http://localhost:8761/eureka/
+        defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
       registry-fetch-interval-seconds: 10      # ✅ increased from 5
       eureka-server-connect-timeout-seconds: 10 # ✅ increased
       eureka-server-read-timeout-seconds: 10    # ✅ increased
