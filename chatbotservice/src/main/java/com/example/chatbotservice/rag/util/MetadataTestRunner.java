@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
 public class MetadataTestRunner implements CommandLineRunner {
 
     private final MarkdownLoader loader;

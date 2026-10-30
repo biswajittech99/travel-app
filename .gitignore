@@ -27,4 +27,8 @@ Thumbs.db
 # Local configuration
 application-local.yml
 application-local.yaml
-application-local.properties
+application-local.propertiesk8s/
+*.bak
+# Kubernetes manifests (contain credentials) and backups
+k8s/
+*.bak

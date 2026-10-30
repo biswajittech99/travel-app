@@ -14,7 +14,7 @@ spring:
         response-timeout: 30s
       routes:
         - id: userservice-route   # any name (just unique)
-          uri: lb://USERSERVICE   # MUST match Eureka name (uppercase)
+          uri: ${USERSERVICE_URI:lb://USERSERVICE}   # MUST match Eureka name (uppercase)
           predicates:
             - Path=/api/users/**
 
@@ -47,7 +47,7 @@ spring:
         - id: chatbotservice-route   # any name (just unique)
           uri: lb://CHATBOTSERVICE   # MUST match Eureka name (uppercase)
           predicates:
-            - Path=
+            - Path=/api/chat/**
 
 
 
@@ -70,12 +70,12 @@ eureka:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 10    # ✅ increased from 5
     lease-expiration-duration-in-seconds: 30
-    client:
-      service-url:
-        defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-      registry-fetch-interval-seconds: 10      # ✅ increased from 5
-      eureka-server-connect-timeout-seconds: 10 # ✅ increased
-      eureka-server-read-timeout-seconds: 10    # ✅ increased
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: 10      # ✅ increased from 5
+    eureka-server-connect-timeout-seconds: 10 # ✅ increased
+    eureka-server-read-timeout-seconds: 10    # ✅ increased
 
 
 

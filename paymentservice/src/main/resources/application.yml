@@ -6,7 +6,7 @@ spring:
     name: PAYMENTSERVICE  # ✅ Eureka registration name
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -42,7 +42,7 @@ eureka:
     lease-expiration-duration-in-seconds: 30
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
     registry-fetch-interval-seconds: 10
     eureka-server-connect-timeout-seconds: 10
     eureka-server-read-timeout-seconds: 10
