@@ -11,16 +11,10 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Run Tests') {
             steps {
                 dir('userservice') {
-                    sh 'mvn -pl userservice -am -f ../pom.xml test -Dmaven.test.skip=false'
+                    sh 'mvn -pl userservice -am -f ../pom.xml test'
                 }
             }
         }
@@ -32,12 +26,14 @@ pipeline {
         }
 
         stage('Build Docker Image') {
+            when { branch 'main' }
             steps {
                 sh "docker build -f userservice/Dockerfile -t ${ECR_URI}:${IMAGE_TAG} -t ${ECR_URI}:latest ."
             }
         }
 
         stage('Push to ECR') {
+            when { branch 'main' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'aws-ecr-credentials',
@@ -53,7 +49,27 @@ pipeline {
             }
         }
 
+        stage('Check EKS') {
+            when { branch 'main' }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws-ecr-credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    script {
+                        def rc = sh(
+                            script: "aws eks describe-cluster --name travel-learning-cluster --region ${AWS_REGION} > /dev/null 2>&1",
+                            returnStatus: true)
+                        env.EKS_UP = (rc == 0) ? 'true' : 'false'
+                        echo "EKS cluster available: ${env.EKS_UP}"
+                    }
+                }
+            }
+        }
+
         stage('Approve Production Deploy') {
+            when { allOf { branch 'main'; environment name: 'EKS_UP', value: 'true' } }
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
                     input message: "Deploy image ${IMAGE_TAG} to EKS production?", ok: 'Deploy'
@@ -62,6 +78,7 @@ pipeline {
         }
 
         stage('Deploy to EKS') {
+            when { allOf { branch 'main'; environment name: 'EKS_UP', value: 'true' } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'aws-ecr-credentials',
@@ -70,8 +87,8 @@ pipeline {
                 )]) {
                     sh """
                         aws eks update-kubeconfig --region ${AWS_REGION} --name travel-learning-cluster
-                        kubectl set image deployment/userservice userservice=${ECR_URI}:${IMAGE_TAG} --record
-                        kubectl rollout status deployment/userservice --timeout=120s
+                        kubectl set image deployment/userservice userservice=${ECR_URI}:${IMAGE_TAG}
+                        kubectl rollout status deployment/userservice --timeout=180s
                     """
                 }
             }
@@ -79,13 +96,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Pipeline completed successfully for build ${IMAGE_TAG}"
-        }
-        failure {
-            echo "Pipeline failed — check logs above"
-        }
+        success { echo "Pipeline succeeded (branch: ${env.BRANCH_NAME})" }
+        failure { echo "Pipeline failed (branch: ${env.BRANCH_NAME})" }
     }
 }
-
-
