@@ -2,7 +2,6 @@ package com.example.userservice.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
