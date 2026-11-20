@@ -2,11 +2,12 @@ pipeline {
     agent any
 
     environment {
+        // Flip to 'true' when ECR (and EKS) exist again
+        DEPLOY_ENABLED = 'false'
         AWS_ACCOUNT_ID = '939760948670'
         AWS_REGION     = 'us-east-1'
-        ECR_REPO       = 'travel-userservice'
+        ECR_URI        = "939760948670.dkr.ecr.us-east-1.amazonaws.com/travel-userservice"
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
-        ECR_URI        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
     }
 
     stages {
@@ -28,12 +29,14 @@ pipeline {
         stage('Build Docker Image') {
             when { branch 'main' }
             steps {
-                sh "docker build -f userservice/Dockerfile -t ${ECR_URI}:${IMAGE_TAG} -t ${ECR_URI}:latest ."
+                retry(3) {
+                    sh "docker build -f userservice/Dockerfile -t travel-userservice:${IMAGE_TAG} ."
+                }
             }
         }
 
         stage('Push to ECR') {
-            when { branch 'main' }
+            when { allOf { branch 'main'; environment name: 'DEPLOY_ENABLED', value: 'true' } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'aws-ecr-credentials',
@@ -42,43 +45,24 @@ pipeline {
                 )]) {
                     sh """
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        docker tag travel-userservice:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
                         docker push ${ECR_URI}:${IMAGE_TAG}
-                        docker push ${ECR_URI}:latest
                     """
                 }
             }
         }
 
-        stage('Check EKS') {
-            when { branch 'main' }
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'aws-ecr-credentials',
-                    usernameVariable: 'AWS_ACCESS_KEY_ID',
-                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
-                )]) {
-                    script {
-                        def rc = sh(
-                            script: "aws eks describe-cluster --name travel-learning-cluster --region ${AWS_REGION} > /dev/null 2>&1",
-                            returnStatus: true)
-                        env.EKS_UP = (rc == 0) ? 'true' : 'false'
-                        echo "EKS cluster available: ${env.EKS_UP}"
-                    }
-                }
-            }
-        }
-
         stage('Approve Production Deploy') {
-            when { allOf { branch 'main'; environment name: 'EKS_UP', value: 'true' } }
+            when { allOf { branch 'main'; environment name: 'DEPLOY_ENABLED', value: 'true' } }
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
-                    input message: "Deploy image ${IMAGE_TAG} to EKS production?", ok: 'Deploy'
+                    input message: "Deploy build ${IMAGE_TAG} to production?", ok: 'Deploy'
                 }
             }
         }
 
         stage('Deploy to EKS') {
-            when { allOf { branch 'main'; environment name: 'EKS_UP', value: 'true' } }
+            when { allOf { branch 'main'; environment name: 'DEPLOY_ENABLED', value: 'true' } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'aws-ecr-credentials',
